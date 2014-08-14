@@ -235,7 +235,7 @@ module MatasanoChallenge
         MatasanoChallenge.calculate_hamming_distance(
           text_bytes[0..keylength],
           text_bytes[0..keylength - 1]
-        ) \
+        )
 
       result = [ keylength, keylength - 1, hamming_distance ]
 
@@ -323,7 +323,7 @@ module MatasanoChallenge
     result
   end
 
-  def self.aes_decipher(text_plain, key, bits: 128, mode: :ECB)
+  def self.aes_decrypt(text_plain, key, bits: 128, mode: :ECB)
     cipher = OpenSSL::Cipher::AES.new(bits, mode)
 
     cipher.decrypt
@@ -361,5 +361,63 @@ module MatasanoChallenge
     end
 
     likely_ecb_texts
+  end
+
+  def self.pad_block(text, length)
+    padding_length = length - text.length
+
+    padding_length = length if padding_length == 0
+
+    padding_byte = Convert.bytes_to_hex([padding_length])
+
+    padding_bytes = "\\x#{padding_byte}" * padding_length
+
+    text + padding_bytes
+  end
+
+  def self.aes_encrypt(text_plain, key, bits: 128, mode: :ECB)
+    cipher = OpenSSL::Cipher::AES.new(bits, mode)
+
+    cipher.encrypt
+    cipher.key = key
+    cipher.update(text_plain) + cipher.final
+  end
+
+  # http://upload.wikimedia.org/wikipedia/commons/thumb/8/80/CBC_encryption.svg/601px-CBC_encryption.svg.png
+  def self.cbc_encrypt(message, block_size, iv, key)
+    # merge_block   = block to merge with current block on next cbc iteration
+    # merged_block  = resulting block after merge
+    # merged_blocks = combination of all resulting blocks
+
+    merge_block = iv
+
+    merged_blocks = message.each_slice(block_size).map do |block|
+      merged_block = Convert.xor(block, merge_block)
+
+      merge_block = block
+
+      aes_encrypt(Convert.bytes_to_ascii(merged_block), key)
+    end
+
+    Convert.ascii_to_bytes(merged_blocks.flatten.join)
+  end
+
+  # http://upload.wikimedia.org/wikipedia/commons/thumb/2/2a/CBC_decryption.svg/601px-CBC_decryption.svg.png
+  def self.cbc_decrypt(message, block_size, iv, key)
+    unmerge_block = iv
+
+    unmerged_blocks = message.each_slice(block_size).map do |block|
+
+      unencrypted_block = aes_decrypt(Convert.bytes_to_ascii(block), key)
+
+      unmerged_block = Convert.xor(unmerge_block, unencrypted_block)
+
+      unmerge_block = block
+
+      unmerged_block
+    end
+
+    #Convert.ascii_to_bytes(unmerged_blocks)
+    unmerged_blocks
   end
 end
