@@ -413,34 +413,37 @@ describe '9. Implement PKCS#7 padding' do
 
   text_a_length = 20
 
-  expected_result_a = 'YELLOW SUBMARINE\x04\x04\x04\x04'
+  expected_result_a = "YELLOW SUBMARINE\x04\x04\x04\x04"
 
   text_b = 'TEST'
 
   text_b_length = 30
 
   expected_result_b =
-    'TEST\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a'
+    "TEST\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a"
 
   text_c = 'TEST FULL BLOCK!'
 
   text_c_length = 16
 
   expected_result_c =
-    'TEST FULL BLOCK!\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10'
+    "TEST FULL BLOCK!\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10"
 
   it '#pad_block test_a' do
-    MatasanoChallenge.pad_block(text_a, text_a_length)
+    Convert.bytes_to_ascii(
+      MatasanoChallenge.pad_block(Convert.ascii_to_bytes(text_a), text_a_length))
       .must_equal expected_result_a
   end
 
   it '#pad_block test_b' do
-    MatasanoChallenge.pad_block(text_b, text_b_length)
+    Convert.bytes_to_ascii(
+      MatasanoChallenge.pad_block(Convert.ascii_to_bytes(text_b), text_b_length))
       .must_equal expected_result_b
   end
 
   it '#pad_block test_c' do
-    MatasanoChallenge.pad_block(text_c, text_c_length)
+    Convert.bytes_to_ascii(
+      MatasanoChallenge.pad_block(Convert.ascii_to_bytes(text_c), text_c_length))
       .must_equal expected_result_c
   end
 end
@@ -473,27 +476,50 @@ end
 
 describe '10. Implement CBC Mode' do
 
-  block_size = 8
-  message = 'Hello, this is my test message!'
-  iv      = "01" * 8
-  key = '1234567812345678123456781234567812345678'
+  # need 128 bit key and 128 bit iv, the result will  be padded (16 bytes)
+  block_size = 64
+  message    = 'Hello, this is my test message!'
+  iv         = "01" * 16
+  key        = 'X' * 16
 
   expected_result =
-    'd0yRjOzoZMxH7b08jO7rkM0PataYrXUygq8kCPsm4E/xqtVIKs5f49ZvXnC2iBZZjTSdSPP8D7sC9YqLmB1HWA=='
+    'qotF5Mi9i+eTqzagtMTZHJj0/05LUoK1iM75hyHiQ1ARDnMJDuEvBcpeqmyizz8i'
+
+
+  test_key = "YELLOW SUBMARINE"
+  test_iv  = "0" * 16
+  test_message = File.open('data/10/gistfile1.txt', 'r').read
+
+
+  it '#aes_decrypt' do
+    encrypted_message = MatasanoChallenge.aes_encrypt(message, key)
+    MatasanoChallenge.aes_decrypt(encrypted_message, key).must_equal message
+  end
 
   it '#cbc_encrypt' do
     Convert.bytes_to_base64(
       MatasanoChallenge.cbc_encrypt(
-        Convert.ascii_to_bytes(message), block_size,
+        MatasanoChallenge.pad_block(Convert.ascii_to_bytes(message), 16), block_size,
         Convert.hex_to_bytes(iv), key
       )
     ).must_equal expected_result
   end
 
   it '#cbc_decrypt' do
-    MatasanoChallenge.cbc_decrypt(
-      Convert.base64_to_bytes(expected_result), block_size,
-      Convert.hex_to_bytes(iv), key
+    Convert.bytes_to_ascii(
+      MatasanoChallenge.cbc_decrypt(
+        Convert.base64_to_bytes(expected_result), block_size,
+        Convert.hex_to_bytes(iv), key
+      )
+    ).must_equal message
+  end
+
+  it '#cbc_decrypt matasano test message' do
+    Convert.bytes_to_ascii(
+      MatasanoChallenge.cbc_decrypt(
+        Convert.base64_to_bytes(test_message.gsub("\n", '')), block_size,
+        Convert.ascii_to_bytes(test_iv), test_key
+      )
     ).must_equal message
   end
 end

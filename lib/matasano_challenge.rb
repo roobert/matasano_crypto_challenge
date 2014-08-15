@@ -1,5 +1,6 @@
 #!/usr/bin/env ruby
 
+require 'pp'
 require 'ap'
 require 'base64'
 
@@ -10,11 +11,23 @@ require 'base64'
 module MatasanoChallenge
   module Convert
     def self.hex_to_base64(ascii)
-      bytes_to_base64(hex_to_bytes(ascii))
+      puts "hex_to_base64, input: #{ascii.inspect}" if $DEBUG
+
+      output = bytes_to_base64(hex_to_bytes(ascii))
+
+      puts "hex_to_base64, output: #{output.inspect}" if $DEBUG
+
+      output
     end
 
     def self.base64_to_hex(ascii)
-      bytes_to_hex(base64_to_bytes(ascii))
+      puts "base64_to_hex, input: #{ascii.inspect}" if $DEBUG
+
+      output = bytes_to_hex(base64_to_bytes(ascii))
+
+      puts "base64_to_hex, output: #{output.inspect}" if $DEBUG
+
+      output
     end
 
     # => "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
@@ -34,7 +47,13 @@ module MatasanoChallenge
     # bytes in:  an array of ints that represent ascii bytes
     # ascii out: string
     def self.bytes_to_ascii(bytes)
-      bytes.map { |byte| byte.chr }.join
+      puts "bytes_to_ascii, input: #{bytes.inspect}" if $DEBUG
+
+      output = bytes.map { |byte| byte.chr }.join
+
+      puts "bytes_to_ascii, output: #{output.inspect}" if $DEBUG
+
+      output
     end
 
     # ascii_to_bytes
@@ -42,7 +61,13 @@ module MatasanoChallenge
     # ascii in:  string
     # bytes out:  an array of ints that represent ascii bytes
     def self.ascii_to_bytes(ascii)
-      ascii.each_char.map { |char| char.ord }
+      puts "ascii_to_bytes, input: #{ascii.inspect}" if $DEBUG
+
+      output = ascii.each_char.map { |char| char.ord }
+
+      puts "ascii_to_bytes, output: #{output.inspect}" if $DEBUG
+
+      output
     end
 
     # bytes_to_base64
@@ -81,7 +106,13 @@ module MatasanoChallenge
       # for the binary encoding table
       #binary.scan(/....../).map { |index| BASE64_ENCODING_TABLE[index.to_i(2)] }.join
 
-      Base64.strict_encode64(bytes_to_ascii(bytes))
+      puts "bytes_to_base64, input: #{bytes.inspect}" if $DEBUG
+
+      output = Base64.strict_encode64(bytes_to_ascii(bytes))
+
+      puts "bytes_to_base64, output: #{output.inspect}" if $DEBUG
+
+      output
     end
 
     # The '==' sequence indicates that the last group contained only one byte, and '=' indicates that it contained two bytes. The example below illustrates how truncating the input of the whole of the above quote changes the output padding:
@@ -92,28 +123,50 @@ module MatasanoChallenge
 
       #binary.scan(/......../).map { |byte| byte.to_i(2) }
 
-      ascii_to_bytes(Base64.strict_decode64(ascii))
+      puts "base64_to_bytes, input: #{ascii.inspect}" if $DEBUG
+
+      output = ascii_to_bytes(Base64.strict_decode64(ascii))
+
+      puts "base64_to_bytes, output: #{output.inspect}" if $DEBUG
+
+      output
     end
 
     def self.bytes_to_hex(bytes)
       # output an array..
       #bytes.map { |byte| "%#x" % byte } 
 
+      puts "bytes_to_hex, input: #{bytes.inspect}" if $DEBUG
+
       # FIXME? assumes hex is always going to be a string of doubles rather than an array of hex strings?!
-      bytes.map { |byte| "%02x" % byte }.join
+      output = bytes.map { |byte| "%02x" % byte }.join
+
+      puts "bytes_to_hex, output: #{output.inspect}" if $DEBUG
+
+      output
     end
 
     def self.hex_to_bytes(string)
+      puts "hex_to_bytes, input: #{string.inspect}" if $DEBUG
+
       # convert string of hex doubles to an array of decimal values which represent ascii values
       # each double represents a numeric value
-      string.scan(/../).map do |double|
+      output = string.scan(/../).map do |double|
         double.to_i(16)
       end
+
+      puts "hex_to_bytes, output: #{output.inspect}" if $DEBUG
+
+      output
     end
 
     # returns array of bytes
     def self.xor(string_a_bytes, string_b_bytes)
-      string_a_bytes.zip(string_b_bytes).map { |pair| pair[0].to_i ^ pair[1].to_i  }
+
+      puts "xor, a_input: #{string_a_bytes.inspect}" if $DEBUG
+      puts "xor, b_input: #{string_b_bytes.inspect}" if $DEBUG
+
+      output = string_a_bytes.zip(string_b_bytes).map { |pair| pair[0].to_i ^ pair[1].to_i  }
 #      string_a_bytes.each_with_index.map do |byte, index|
 #        if byte.nil?  or string_b_bytes[index].nil?
 #          nil
@@ -121,6 +174,10 @@ module MatasanoChallenge
 #          byte ^ string_b_bytes[index]
 #        end
 #      end
+
+      puts "xor, output: #{output.inspect}" if $DEBUG
+
+      output
     end
   end
 
@@ -363,16 +420,25 @@ module MatasanoChallenge
     likely_ecb_texts
   end
 
-  def self.pad_block(text, length)
-    padding_length = length - text.length
+  # FIXME: rename to pad message?
+  def self.pad_block(bytes, block_length)
 
-    padding_length = length if padding_length == 0
+    # if the message is smaller than block length then
 
-    padding_byte = Convert.bytes_to_hex([padding_length])
+    if bytes.length <= block_length
 
-    padding_bytes = "\\x#{padding_byte}" * padding_length
+      padding_byte = block_length - bytes.length
 
-    text + padding_bytes
+      padding_byte = block_length if padding_byte == 0
+
+    # if the message is longer than the block length then work out the remainer
+    else
+      padding_byte = block_length - (bytes.length % block_length)
+    end
+
+    (0...padding_byte).each { bytes.push padding_byte }
+
+    bytes
   end
 
   def self.aes_encrypt(text_plain, key, bits: 128, mode: :ECB)
@@ -392,32 +458,63 @@ module MatasanoChallenge
     merge_block = iv
 
     merged_blocks = message.each_slice(block_size).map do |block|
+
       merged_block = Convert.xor(block, merge_block)
 
       merge_block = block
 
-      aes_encrypt(Convert.bytes_to_ascii(merged_block), key)
+      #ap Convert.bytes_to_ascii(merged_block).length
+
+      b = aes_encrypt(Convert.bytes_to_ascii(merged_block), key)
+      #ap b.length
+      b
     end
+
+    #merged_blocks.each { |b| puts b.length }
+
+    #pp merged_blocks.flatten.join
 
     Convert.ascii_to_bytes(merged_blocks.flatten.join)
   end
 
   # http://upload.wikimedia.org/wikipedia/commons/thumb/2/2a/CBC_decryption.svg/601px-CBC_decryption.svg.png
   def self.cbc_decrypt(message, block_size, iv, key)
+
+    #pp Convert.bytes_to_ascii(message)
+
     unmerge_block = iv
 
+    # split message up into 16 byte (128bit) blocks
     unmerged_blocks = message.each_slice(block_size).map do |block|
 
+      # decrypt block
       unencrypted_block = aes_decrypt(Convert.bytes_to_ascii(block), key)
 
-      unmerged_block = Convert.xor(unmerge_block, unencrypted_block)
+      unmerged_block = Convert.xor(Convert.ascii_to_bytes(unencrypted_block), unmerge_block)
 
       unmerge_block = block
 
       unmerged_block
     end
 
-    #Convert.ascii_to_bytes(unmerged_blocks)
-    unmerged_blocks
+    # inspect last block
+    last_block = unmerged_blocks[-1]
+
+    # if last byte is in range of possible padding byte values...
+    if last_block[-1].between?(0, block_size)
+
+      # get last byte
+      possible_padding_byte = last_block[-1]
+
+      # check to see if the number of last bytes blah blah
+      if last_block[-possible_padding_byte..-1].each { |byte| return false unless byte == possible_padding_byte }
+        # we've found padding!
+        (0...possible_padding_byte).each { last_block.delete_at(-1) }
+
+        unmerged_blocks[-1] == last_block
+      end
+    end
+
+    unmerged_blocks.flatten
   end
 end
