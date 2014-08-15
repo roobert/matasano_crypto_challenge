@@ -463,24 +463,14 @@ module MatasanoChallenge
 
       merge_block = block
 
-      #ap Convert.bytes_to_ascii(merged_block).length
-
-      b = aes_encrypt(Convert.bytes_to_ascii(merged_block), key)
-      #ap b.length
-      b
+      aes_encrypt(Convert.bytes_to_ascii(merged_block), key)
     end
-
-    #merged_blocks.each { |b| puts b.length }
-
-    #pp merged_blocks.flatten.join
 
     Convert.ascii_to_bytes(merged_blocks.flatten.join)
   end
 
   # http://upload.wikimedia.org/wikipedia/commons/thumb/2/2a/CBC_decryption.svg/601px-CBC_decryption.svg.png
   def self.cbc_decrypt(message, block_size, iv, key)
-
-    #pp Convert.bytes_to_ascii(message)
 
     unmerge_block = iv
 
@@ -496,6 +486,8 @@ module MatasanoChallenge
 
       unmerged_block
     end
+
+    # remove padding..
 
     # inspect last block
     last_block = unmerged_blocks[-1]
