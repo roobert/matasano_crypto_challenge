@@ -457,20 +457,23 @@ module MatasanoChallenge
     cipher.update(text_plain) + cipher.final
   end
 
-
+  # FIXME: this is potentially untrustworthy!
   # http://upload.wikimedia.org/wikipedia/commons/thumb/8/80/CBC_encryption.svg/601px-CBC_encryption.svg.png
   def self.cbc_encrypt(message, block_size, iv, key)
-    # merge_block   = block to merge with current block on next cbc iteration
-    # merged_block  = resulting block after merge
+
+    # iv            = block to merge with current block on next cbc iteration
+    # merged_block  = resulting block after merge with iv
     # merged_blocks = combination of all resulting blocks
 
     merged_blocks = message.each_slice(block_size).map do |block|
 
       merged_block = Convert.xor(block, iv)
 
-      iv = block
+      encrypted_block = aes_encrypt(Convert.bytes_to_ascii(merged_block), key, padding: 0)
 
-      aes_encrypt(Convert.bytes_to_ascii(merged_block), key, padding: 0)
+      iv = Convert.ascii_to_bytes(encrypted_block)
+
+      encrypted_block
     end
 
     Convert.ascii_to_bytes(merged_blocks.flatten.join)
@@ -485,10 +488,20 @@ module MatasanoChallenge
 
       unmerged_block = Convert.xor(Convert.ascii_to_bytes(unencrypted_block), iv)
 
-      iv = unmerged_block
+      if $DEBUG
+        puts "iv: #{iv}"
+        puts "encrypted_block: #{block.inspect}"
+        puts "unencrypted_block: #{unencrypted_block}"
+        puts "unmerged_block: #{Convert.bytes_to_ascii(unmerged_block)}"
+        puts
+      end
+
+      iv = block
 
       unmerged_block
     end
+
+    # FIXME: refactor! this works but is full of nasty..
 
     # remove padding..
 
@@ -501,8 +514,13 @@ module MatasanoChallenge
       # get last byte
       possible_padding_byte = last_block[-1]
 
-      # check to see if the number of last bytes blah blah
-      if last_block[-possible_padding_byte..-1].each { |byte| return false unless byte == possible_padding_byte }
+      # look at the last bytes and see if they are all the same and the amount of them
+      # matches their value..
+      padded = last_block[-possible_padding_byte..-1].map do |byte|
+        break unless byte == possible_padding_byte
+      end
+
+      if padded
         # we've found padding!
         (0...possible_padding_byte).each { last_block.delete_at(-1) }
 

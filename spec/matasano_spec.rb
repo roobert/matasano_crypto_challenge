@@ -479,16 +479,16 @@ describe '10. Implement CBC Mode' do
   # need 128 bit key and 128 bit iv, the result will  be padded (16 bytes)
   block_size = 16
   message    = 'Hello, this is my test message!'
-  iv         = "01" * 16
+  iv         = "1" * 16
   key        = 'X' * 16
 
   expected_result =
-    'qotF5Mi9i+eTqzagtMTZHMrScbIfBeCw/VL9tx112BE='
+    'uDrLN3sjkC+0N1/RS6WyxdCa8DgUIo1DVZit80NIZt4='
 
-
-  test_key = "YELLOW SUBMARINE"
-  test_iv  = "0" * 16
-  test_message = File.open('data/10/gistfile1.txt', 'r').read
+  test_key              = "YELLOW SUBMARINE"
+  test_iv               = "0" * 16
+  test_message          = File.open('data/10/gistfile1.txt', 'r').read
+  test_expected_message = File.open('data/10/expected_message.txt', 'r').read
 
 
   it '#aes_decrypt' do
@@ -515,13 +515,12 @@ describe '10. Implement CBC Mode' do
   end
 
   it '#cbc_decrypt matasano test message' do
-    #Convert.bytes_to_ascii(
-    ap MatasanoChallenge.cbc_decrypt(
+    Convert.bytes_to_ascii(
+      MatasanoChallenge.cbc_decrypt(
         Convert.base64_to_bytes(test_message.gsub("\n", '')), block_size,
-        Convert.ascii_to_bytes(test_iv), test_key
+        Convert.hex_to_bytes(test_iv), test_key
       )
-    #)
-    #).must_equal message
+    ).must_equal test_expected_message
   end
 end
 
