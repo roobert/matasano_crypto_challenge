@@ -380,13 +380,16 @@ module MatasanoChallenge
     result
   end
 
-  def self.aes_decrypt(text_plain, key, bits: 128, mode: :ECB)
+  def self.aes_decrypt(text_plain, key, bits: 128, mode: :ECB, padding: 128)
     cipher = OpenSSL::Cipher::AES.new(bits, mode)
 
     cipher.decrypt
     cipher.key = key
+    cipher.padding = padding
+
     cipher.update(text_plain) + cipher.final
   end
+
 
   def self.detect_ecb(text)
     likely_ecb_texts = []
@@ -441,13 +444,19 @@ module MatasanoChallenge
     bytes
   end
 
-  def self.aes_encrypt(text_plain, key, bits: 128, mode: :ECB)
+  # this function pads stuff!
+  def self.aes_encrypt(text_plain, key, bits: 128, mode: :ECB, padding: 128)
     cipher = OpenSSL::Cipher::AES.new(bits, mode)
+
+    #raise ArgumentError, "input must be '#{bits / 8}' bytes long for aes-#{bits}! message length: #{text_plain.length}, message: #{text_plain}"
 
     cipher.encrypt
     cipher.key = key
+    cipher.padding = padding
+
     cipher.update(text_plain) + cipher.final
   end
+
 
   # http://upload.wikimedia.org/wikipedia/commons/thumb/8/80/CBC_encryption.svg/601px-CBC_encryption.svg.png
   def self.cbc_encrypt(message, block_size, iv, key)
@@ -455,15 +464,13 @@ module MatasanoChallenge
     # merged_block  = resulting block after merge
     # merged_blocks = combination of all resulting blocks
 
-    merge_block = iv
-
     merged_blocks = message.each_slice(block_size).map do |block|
 
-      merged_block = Convert.xor(block, merge_block)
+      merged_block = Convert.xor(block, iv)
 
-      merge_block = block
+      iv = block
 
-      aes_encrypt(Convert.bytes_to_ascii(merged_block), key)
+      aes_encrypt(Convert.bytes_to_ascii(merged_block), key, padding: 0)
     end
 
     Convert.ascii_to_bytes(merged_blocks.flatten.join)
@@ -472,17 +479,13 @@ module MatasanoChallenge
   # http://upload.wikimedia.org/wikipedia/commons/thumb/2/2a/CBC_decryption.svg/601px-CBC_decryption.svg.png
   def self.cbc_decrypt(message, block_size, iv, key)
 
-    unmerge_block = iv
-
-    # split message up into 16 byte (128bit) blocks
     unmerged_blocks = message.each_slice(block_size).map do |block|
 
-      # decrypt block
-      unencrypted_block = aes_decrypt(Convert.bytes_to_ascii(block), key)
+      unencrypted_block = aes_decrypt(Convert.bytes_to_ascii(block), key, padding: 0)
 
-      unmerged_block = Convert.xor(Convert.ascii_to_bytes(unencrypted_block), unmerge_block)
+      unmerged_block = Convert.xor(Convert.ascii_to_bytes(unencrypted_block), iv)
 
-      unmerge_block = block
+      iv = unmerged_block
 
       unmerged_block
     end
