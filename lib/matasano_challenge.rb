@@ -394,7 +394,7 @@ module MatasanoChallenge
   end
 
 
-  def self.detect_ecb(text)
+  def self.detect_ecb_from_text(text)
     likely_ecb_texts = []
 
     line_number = 1
@@ -554,6 +554,8 @@ module MatasanoChallenge
 
     random_key_ascii = Convert.bytes_to_ascii(random_key)
 
+    #ap padded_message
+
     # encrypt ecb 50% of the time, cbc 50% of the time..
     if rand(2) == 1
       {
@@ -572,5 +574,33 @@ module MatasanoChallenge
         iv: iv,
       }
     end
+  end
+
+  def self.detect_ecb(message)
+    cipher_text = message
+
+    slices = cipher_text.each_slice(16).map { |slice| slice }
+
+    slice_counts = Hash.new(0)
+
+    slices.each { |slice| slice_counts[slice] += 1 }
+
+    # only keep each block if it repeats more than once
+    slice_counts.keep_if { |k,v| v.to_i > 1 }
+
+    return ({ :cipher_text  => message, :slice_counts => slice_counts }) unless slice_counts.empty?
+  end
+
+  # detect ecb with an offset.. if it's not ecb then it must be cbc
+  def self.detect_aes_mode(message, length=10)
+    (0...length).each do
+      result = detect_ecb(message)
+
+      return :ecb if result != nil
+
+      message.shift
+    end
+
+    :cbc
   end
 end

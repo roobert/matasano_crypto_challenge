@@ -386,7 +386,7 @@ describe '8. Detecting ECB' do
   expected_result = "d880619740a8a19b7840a8a31c810a3d08649af70dc06f4fd5d2d69c744cd283e2dd052f6b641dbf9d11b0348542bb5708649af70dc06f4fd5d2d69c744cd2839475c9dfdbc1d46597949d9c7e82bf5a08649af70dc06f4fd5d2d69c744cd28397a93eab8d6aecd566489154789a6b0308649af70dc06f4fd5d2d69c744cd283d403180c98c8f6db1f2a3f9c4040deb0ab51b29933f2c123c58386b06fba186a\n"
 
   it '#detect_ecb' do
-    MatasanoChallenge.detect_ecb(text_plain)[0][:cipher_text].must_equal expected_result
+    MatasanoChallenge.detect_ecb_from_text(text_plain)[0][:cipher_text].must_equal expected_result
   end
 end
 
@@ -550,12 +550,17 @@ end
 
 describe '# 11. Write an oracle function and use it to detect ECB.' do
   it '#random_key' do
-    random_key
+#    random_key
   end
 
   it '#aes_encrypt_with_random_key_and_random_mode' do
-    #MatasanoChallenge.detect_ecb(text_plain)[0][:cipher_text].must_equal expected_result
-    #MatasanoChallenge.aes_encrypt_with_random_key_and_random_mode(message)
+  end
+
+  it '#detect_aes_mode' do
+    input = Convert.ascii_to_bytes(File.open("data/11/input.txt").read)
+    message = MatasanoChallenge.aes_encrypt_with_random_key_and_random_mode(input)
+
+    MatasanoChallenge.detect_aes_mode(message[:message]).must_equal message[:mode]
   end
 end
 
