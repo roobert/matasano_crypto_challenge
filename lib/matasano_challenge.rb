@@ -146,7 +146,10 @@ module MatasanoChallenge
       output
     end
 
+    # FIXME: this is really broken and should allow values represented by strings that are more or
+    #        less than two bytes
     def self.hex_to_bytes(string)
+
       puts "hex_to_bytes, input: #{string.inspect}" if $DEBUG
 
       # convert string of hex doubles to an array of decimal values which represent ascii values
@@ -444,8 +447,9 @@ module MatasanoChallenge
     bytes
   end
 
-  # this function pads stuff!
-  def self.aes_encrypt(text_plain, key, bits: 128, mode: :ECB, padding: 128)
+  # NOTE: set padding: 0 to use in non-ecb mode (raw)!
+  def self.aes_encrypt(message, key, bits: 128, mode: :ECB, padding: 128)
+
     cipher = OpenSSL::Cipher::AES.new(bits, mode)
 
     #raise ArgumentError, "input must be '#{bits / 8}' bytes long for aes-#{bits}! message length: #{text_plain.length}, message: #{text_plain}"
@@ -454,7 +458,7 @@ module MatasanoChallenge
     cipher.key = key
     cipher.padding = padding
 
-    cipher.update(text_plain) + cipher.final
+    Convert.ascii_to_bytes(cipher.update(Convert.bytes_to_ascii(message)) + cipher.final)
   end
 
   # FIXME: this is potentially untrustworthy!
@@ -469,14 +473,12 @@ module MatasanoChallenge
 
       merged_block = Convert.xor(block, iv)
 
-      encrypted_block = aes_encrypt(Convert.bytes_to_ascii(merged_block), key, padding: 0)
+      iv = aes_encrypt(merged_block, key, padding: 0)
 
-      iv = Convert.ascii_to_bytes(encrypted_block)
-
-      encrypted_block
+      iv
     end
 
-    Convert.ascii_to_bytes(merged_blocks.flatten.join)
+    merged_blocks.flatten
   end
 
   # http://upload.wikimedia.org/wikipedia/commons/thumb/2/2a/CBC_decryption.svg/601px-CBC_decryption.svg.png
@@ -529,5 +531,46 @@ module MatasanoChallenge
     end
 
     unmerged_blocks.flatten
+  end
+
+  def self.random_bytes(start: 0, length: 16)
+    (start...start+length).map { random_byte }
+  end
+
+  self.singleton_class.send(:alias_method, :random_key, :random_bytes)
+
+  def self.random_byte
+    rand(33...126)
+  end
+
+  # encryption oracle
+  def self.aes_encrypt_with_random_key_and_random_mode(message)
+    # append random 5-10 bytes before and after plain text
+    padded_message = pad_block([
+      random_bytes(start: rand(1..5), length: 5),
+      message,
+      random_bytes(start: rand(1..5), length: 5),
+    ].flatten, 16)
+
+    random_key_ascii = Convert.bytes_to_ascii(random_key)
+
+    # encrypt ecb 50% of the time, cbc 50% of the time..
+    if rand(2) == 1
+      {
+        message: aes_encrypt(padded_message, random_key_ascii),
+        mode: :ecb,
+        key: random_key_ascii
+      }
+    else
+
+      iv = Convert.hex_to_bytes("0#{rand(2)}") * 16
+
+      {
+        message: cbc_encrypt(padded_message, 16, iv, random_key_ascii),
+        mode: :cbc,
+        key: random_key_ascii,
+        iv: iv,
+      }
+    end
   end
 end

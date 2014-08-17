@@ -479,28 +479,27 @@ describe '10. Implement CBC Mode' do
   # need 128 bit key and 128 bit iv, the result will  be padded (16 bytes)
   block_size = 16
   message    = 'Hello, this is my test message!'
-  iv         = "1" * 16
+  iv         = MatasanoChallenge::Convert.hex_to_bytes('01') * 16
   key        = 'X' * 16
 
   expected_result =
-    'uDrLN3sjkC+0N1/RS6WyxdCa8DgUIo1DVZit80NIZt4='
+    'qotF5Mi9i+eTqzagtMTZHF3oMTwL44eHZ7+z2qJMt2g='
 
   test_key              = "YELLOW SUBMARINE"
-  test_iv               = "0" * 16
+  test_iv               = MatasanoChallenge::Convert.hex_to_bytes('00') * 16
   test_message          = File.open('data/10/gistfile1.txt', 'r').read
   test_expected_message = File.open('data/10/expected_message.txt', 'r').read
 
 
   it '#aes_decrypt' do
-    encrypted_message = MatasanoChallenge.aes_encrypt(message, key)
+    encrypted_message = Convert.bytes_to_ascii(MatasanoChallenge.aes_encrypt(Convert.ascii_to_bytes(message), key))
     MatasanoChallenge.aes_decrypt(encrypted_message, key).must_equal message
   end
 
   it '#cbc_encrypt' do
     Convert.bytes_to_base64(
       MatasanoChallenge.cbc_encrypt(
-        MatasanoChallenge.pad_block(Convert.ascii_to_bytes(message), 16), block_size,
-        Convert.hex_to_bytes(iv), key
+        MatasanoChallenge.pad_block(Convert.ascii_to_bytes(message), 16), block_size, iv, key
       )
     ).must_equal expected_result
   end
@@ -508,8 +507,7 @@ describe '10. Implement CBC Mode' do
   it '#cbc_decrypt' do
     Convert.bytes_to_ascii(
       MatasanoChallenge.cbc_decrypt(
-        Convert.base64_to_bytes(expected_result), block_size,
-        Convert.hex_to_bytes(iv), key
+        Convert.base64_to_bytes(expected_result), block_size, iv, key
       )
     ).must_equal message
   end
@@ -518,7 +516,7 @@ describe '10. Implement CBC Mode' do
     Convert.bytes_to_ascii(
       MatasanoChallenge.cbc_decrypt(
         Convert.base64_to_bytes(test_message.gsub("\n", '')), block_size,
-        Convert.hex_to_bytes(test_iv), test_key
+        test_iv, test_key
       )
     ).must_equal test_expected_message
   end
@@ -550,6 +548,16 @@ end
 #
 # Now detect the block cipher mode the function is using each time.
 
+describe '# 11. Write an oracle function and use it to detect ECB.' do
+  it '#random_key' do
+    random_key
+  end
+
+  it '#aes_encrypt_with_random_key_and_random_mode' do
+    #MatasanoChallenge.detect_ecb(text_plain)[0][:cipher_text].must_equal expected_result
+    #MatasanoChallenge.aes_encrypt_with_random_key_and_random_mode(message)
+  end
+end
 
 # // ------------------------------------------------------------
 #
