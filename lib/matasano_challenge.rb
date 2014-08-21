@@ -1,7 +1,6 @@
 #!/usr/bin/env ruby
 
 require 'pp'
-require 'ap'
 require 'base64'
 
 # A String object holds and manipulates an arbitrary sequence of bytes, typically representing characters. String objects may be created using String::new or as literals.
@@ -602,5 +601,38 @@ module MatasanoChallenge
     end
 
     :cbc
+  end
+
+  # encryption oracle
+  def self.aes_encrypt_with_random_key_and_random_mode(message)
+    # append random 5-10 bytes before and after plain text
+    padded_message = pad_block([
+      random_bytes(start: rand(1..5), length: 5),
+      message,
+      random_bytes(start: rand(1..5), length: 5),
+    ].flatten, 16)
+
+    random_key_ascii = Convert.bytes_to_ascii(random_key)
+
+    #ap padded_message
+
+    # encrypt ecb 50% of the time, cbc 50% of the time..
+    if rand(2) == 1
+      {
+        message: aes_encrypt(padded_message, random_key_ascii),
+        mode: :ecb,
+        key: random_key_ascii
+      }
+    else
+
+      iv = Convert.hex_to_bytes("0#{rand(2)}") * 16
+
+      {
+        message: cbc_encrypt(padded_message, 16, iv, random_key_ascii),
+        mode: :cbc,
+        key: random_key_ascii,
+        iv: iv,
+      }
+    end
   end
 end

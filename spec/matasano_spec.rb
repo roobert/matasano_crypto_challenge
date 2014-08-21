@@ -1,16 +1,10 @@
 #!/usr/bin/env ruby
 
+$LOAD_PATH.unshift(File.dirname(__FILE__) + "../lib")
+
 require 'openssl'
 require 'minitest/pride'
 require 'minitest/autorun'
-#require 'turn'
-require 'load_path'
-require 'ap'
-
-LoadPath.configure do
-  add parent_directory('lib', up: 1)
-end
-
 require 'matasano_challenge'
 
 include MatasanoChallenge
